@@ -9,7 +9,7 @@ writestr=$2
 # Checks that at least 2 input arguments are present. Prints message and exits if they are not
 if [ $# -lt 2 ];
 then
-    echo "missing argument"
+    echo "missing argument. Arguments should be 1) path to file 2) string to write into the file"
     exit 1
 fi
 

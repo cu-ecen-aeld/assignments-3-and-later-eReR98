@@ -9,7 +9,7 @@ searchstr=$2
 # Checks that at least 2 input arguments are present. Prints message and exits if they are not
 if [ $# -lt 2 ];
 then
-    echo "missing argument"
+    echo "missing argument. Arguments should be 1) path to directory 2) string to search for"
     exit 1
 fi
 
