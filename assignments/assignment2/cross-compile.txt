@@ -1,0 +1,15 @@
+Verifying aarch64 cross compiler is installed
+
+ajbru@Ubuntu:~/Documents/GitHub/LinuxSysProgramming$ aarch64-none-linux-gnu-gcc -print-sysroot -v
+Using built-in specs.
+COLLECT_GCC=aarch64-none-linux-gnu-gcc
+COLLECT_LTO_WRAPPER=/home/ajbru/Documents/InstallFiles/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu/bin/../libexec/gcc/aarch64-none-linux-gnu/10.2.1/lto-wrapper
+/home/ajbru/Documents/InstallFiles/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu/bin/../aarch64-none-linux-gnu/libc
+
+Output from makefile
+ajbru@Ubuntu:~/Documents/GitHub/LinuxSysProgramming/finder-app$ make
+aarch64-none-linux-gnu-gcc -g -Wall -o writer writer.c
+
+using "file" command on the writer compiled using aarch64. Note I had the debug flag so it found that as well. 
+ajbru@Ubuntu:~/Documents/GitHub/LinuxSysProgramming/finder-app$ file writer
+writer: ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV), dynamically linked, interpreter /lib/ld-linux-aarch64.so.1, for GNU/Linux 3.7.0, with debug_info, not stripped

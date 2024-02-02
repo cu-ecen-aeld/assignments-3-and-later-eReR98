@@ -2,6 +2,8 @@
 # Tester script for assignment 1 and assignment 2
 # Author: Siddhant Jajoo
 
+# THIS HAS BEEN MODIFIED TO USE THE writer.c FILE
+
 set -e
 set -u
 
