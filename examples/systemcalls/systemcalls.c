@@ -1,4 +1,7 @@
 #include "systemcalls.h"
+#include <stdlib.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 /**
  * @param cmd the command to execute with system()
@@ -16,6 +19,11 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
+
+    if(system(cmd) == -1)
+    {
+        return false;
+    }
 
     return true;
 }
@@ -47,7 +55,7 @@ bool do_exec(int count, ...)
     command[count] = NULL;
     // this line is to avoid a compile warning before your implementation is complete
     // and may be removed
-    command[count] = command[count];
+    //command[count] = command[count];
 
 /*
  * TODO:
@@ -58,6 +66,41 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+
+    pid_t pid = fork();
+
+    // Checks for error in fork()
+    if (pid < 0)
+    {
+        perror("Problem using fork()");
+        return false;
+    }
+
+    // Pulls out remaining arguments from commands without commands[0]
+    // char * remCommands[count];
+
+    // for(i=0; i<count; i++)
+    // {
+    //     remCommands[i] = command[i+1];
+    // }
+
+    // Indicates that this process is the child and should execute the follow code. Otherwise it continues
+    if (pid == 0)
+    {
+        //perror("this is the child\n");
+        int rv = execv(command[0], command);
+        perror("Error with execv\n"); // only reached if execv fails
+        exit(rv);
+    }
+
+    int waitStat = 0;
+
+    waitpid(pid, &waitStat, 0);
+
+    if(WEXITSTATUS(waitStat))
+    {
+        return false;
+    }
 
     va_end(args);
 
