@@ -1,3 +1,4 @@
+# Simple makefile for creating writer. Comment/uncomment CROSS_COMPILE to choose which architecture to compile for
 SRC := writer.c
 TARGET = writer
 CFLAGS = -g -Wall
