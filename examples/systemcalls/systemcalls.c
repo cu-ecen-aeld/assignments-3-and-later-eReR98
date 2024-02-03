@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 /**
  * @param cmd the command to execute with system()
@@ -53,9 +54,6 @@ bool do_exec(int count, ...)
         command[i] = va_arg(args, char *);
     }
     command[count] = NULL;
-    // this line is to avoid a compile warning before your implementation is complete
-    // and may be removed
-    //command[count] = command[count];
 
 /*
  * TODO:
@@ -76,28 +74,21 @@ bool do_exec(int count, ...)
         return false;
     }
 
-    // Pulls out remaining arguments from commands without commands[0]
-    // char * remCommands[count];
-
-    // for(i=0; i<count; i++)
-    // {
-    //     remCommands[i] = command[i+1];
-    // }
-
     // Indicates that this process is the child and should execute the follow code. Otherwise it continues
     if (pid == 0)
     {
-        //perror("this is the child\n");
         int rv = execv(command[0], command);
         perror("Error with execv\n"); // only reached if execv fails
         exit(rv);
     }
 
+    // Calls waitpid() to wait for process completion
     int waitStat = 0;
 
     waitpid(pid, &waitStat, 0);
 
-    if(WEXITSTATUS(waitStat))
+    // Checks for abnormal exit status
+    if(WEXITSTATUS(waitStat) != 0)
     {
         return false;
     }
@@ -123,9 +114,6 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
         command[i] = va_arg(args, char *);
     }
     command[count] = NULL;
-    // this line is to avoid a compile warning before your implementation is complete
-    // and may be removed
-    command[count] = command[count];
 
 
 /*
@@ -135,6 +123,50 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
+
+
+    int fret = open(outputfile, O_WRONLY|O_TRUNC|O_CREAT, 0644);
+
+    if(fret < 0)
+    {
+        perror("Error opening file");
+        return false;
+    }
+
+    pid_t pid = fork();
+
+    // Checks for error in fork()
+    if (pid < 0)
+    {
+        perror("Problem using fork()");
+        return false;
+    }
+
+    // Indicates that this process is the child and should execute the follow code. Otherwise it continues
+    if (pid == 0)
+    {
+
+        if (dup2(fret, 1) < 0)
+        {
+            perror("problem with dup2");
+        }
+
+        close(fret);
+        int rv = execv(command[0], command);
+        perror("Error with execv\n"); // only reached if execv fails
+        exit(rv);
+    }
+
+    // Calls waitpid() to wait for process completion
+    int waitStat = 0;
+
+    waitpid(pid, &waitStat, 0);
+
+    // Checks for abnormal exit status
+    if(WEXITSTATUS(waitStat) != 0)
+    {
+        return false;
+    }
 
     va_end(args);
 
