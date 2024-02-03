@@ -21,7 +21,12 @@ else
 	echo "Using passed directory ${OUTDIR} for output"
 fi
 
-mkdir -p ${OUTDIR}
+    # Checking if mkdir completes successfully
+if ! mkdir -p "${OUTDIR}";
+then
+    echo "failed to create directory for file"
+    exit 1
+fi
 
 cd "$OUTDIR"
 if [ ! -d "${OUTDIR}/linux-stable" ]; then
@@ -35,9 +40,22 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
     git checkout ${KERNEL_VERSION}
 
     # TODO: Add your kernel build steps here
+
+    make ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- mrproper
+
+    make ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- defconfig
+
+    make -j4 ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- all
+
+    make ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- modules
+
+    make ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- dtbs
+
 fi
 
 echo "Adding the Image in outdir"
+
+cp -a ${OUTDIR}/linux-stable/arch/arm64/boot/. ${OUTDIR}
 
 echo "Creating the staging directory for the root filesystem"
 cd "$OUTDIR"
@@ -61,6 +79,9 @@ else
 fi
 
 # TODO: Make and install busybox
+make defconfig
+make CONFIG_PREFIX=${OUTDIR} install
+cd ..
 
 echo "Library dependencies"
 ${CROSS_COMPILE}readelf -a bin/busybox | grep "program interpreter"
