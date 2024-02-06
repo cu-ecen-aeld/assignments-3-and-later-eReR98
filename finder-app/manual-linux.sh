@@ -119,7 +119,7 @@ sudo mknod -m 600 ${OUTDIR}/rootfs/dev/console c 5 1
 
 # TODO: Clean and build the writer utility
 
-cd /home/ajbru/Documents/GitHub/LinuxSysProgramming/finder-app
+cd finder-app
 make clean
 make CROSS_COMPILE=${CROSS_COMPILE}
 
