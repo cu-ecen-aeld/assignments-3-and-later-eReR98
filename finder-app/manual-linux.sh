@@ -15,6 +15,9 @@ CROSS_COMPILE=aarch64-none-linux-gnu-
 
 export PATH=$PATH:/home/ajbru/Documents/InstallFiles/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu/bin
 
+echo "Copying files to current directory"
+cp -r /home/ajbru/Documents/InstallFiles/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu ./
+
 if [ $# -lt 1 ]
 then
 	echo "Using default directory ${OUTDIR} for output"
