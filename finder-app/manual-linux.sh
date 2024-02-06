@@ -100,10 +100,16 @@ ${CROSS_COMPILE}readelf -a bin/busybox | grep "Shared library"
 
 # TODO: Add library dependencies to rootfs
 
-cp /home/ajbru/Documents/InstallFiles/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu/aarch64-none-linux-gnu/libc/lib/ld-linux-aarch64.so.1 ${OUTDIR}/rootfs/lib
-cp /home/ajbru/Documents/InstallFiles/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu/aarch64-none-linux-gnu/libc/lib64/libm.so.6 ${OUTDIR}/rootfs/lib64
-cp /home/ajbru/Documents/InstallFiles/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu/aarch64-none-linux-gnu/libc/lib64/libresolv.so.2 ${OUTDIR}/rootfs/lib64
-cp /home/ajbru/Documents/InstallFiles/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu/aarch64-none-linux-gnu/libc/lib64/libc.so.6 ${OUTDIR}/rootfs/lib64
+# Borrowed from
+# https://github.com/cu-ecen-aeld/assignments-3-and-later-aneesh1298/blob/master/finder-app/manual-linux.sh
+# in order to fix a path issue with the autograder. It worked locally, but not on github
+
+LIB_PATH=${aarch64-none-linux-gnu-gcc -print-sysroot}
+
+cp ${LIB_PATH}/lib/ld-linux-aarch64.so.1 ${OUTDIR}/rootfs/lib
+cp ${LIB_PATH}/lib64/libm.so.6 ${OUTDIR}/rootfs/lib64
+cp ${LIB_PATH}/lib64/libresolv.so.2 ${OUTDIR}/rootfs/lib64
+cp ${LIB_PATH}/lib64/libc.so.6 ${OUTDIR}/rootfs/lib64
 
 
 # TODO: Make device nodes
