@@ -15,9 +15,6 @@ CROSS_COMPILE=aarch64-none-linux-gnu-
 
 export PATH=$PATH:/home/ajbru/Documents/InstallFiles/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu/bin
 
-echo "Copying files to current directory"
-cp -r /home/ajbru/Documents/InstallFiles/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu ./
-
 if [ $# -lt 1 ]
 then
 	echo "Using default directory ${OUTDIR} for output"
@@ -107,7 +104,7 @@ ${CROSS_COMPILE}readelf -a bin/busybox | grep "Shared library"
 # https://github.com/cu-ecen-aeld/assignments-3-and-later-aneesh1298/blob/master/finder-app/manual-linux.sh
 # in order to fix a path issue with the autograder. It worked locally, but not on github
 
-LIB_PATH=${aarch64-none-linux-gnu-gcc -print-sysroot}
+LIB_PATH=$(aarch64-none-linux-gnu-gcc -print-sysroot)
 
 cp ${LIB_PATH}/lib/ld-linux-aarch64.so.1 ${OUTDIR}/rootfs/lib
 cp ${LIB_PATH}/lib64/libm.so.6 ${OUTDIR}/rootfs/lib64
@@ -129,13 +126,13 @@ make CROSS_COMPILE=${CROSS_COMPILE}
 # TODO: Copy the finder related scripts and executables to the /home directory
 # on the target rootfs
 
-cp /home/ajbru/Documents/GitHub/LinuxSysProgramming/finder-app/writer ${OUTDIR}/rootfs/home
-cp /home/ajbru/Documents/GitHub/LinuxSysProgramming/finder-app/finder.sh ${OUTDIR}/rootfs/home
-cp /home/ajbru/Documents/GitHub/LinuxSysProgramming/finder-app/finder-test.sh ${OUTDIR}/rootfs/home
+cp writer ${OUTDIR}/rootfs/home
+cp finder.sh ${OUTDIR}/rootfs/home
+cp finder-test.sh ${OUTDIR}/rootfs/home
 mkdir ${OUTDIR}/rootfs/home/conf
-cp /home/ajbru/Documents/GitHub/LinuxSysProgramming/finder-app/conf/username.txt ${OUTDIR}/rootfs/home/conf
-cp /home/ajbru/Documents/GitHub/LinuxSysProgramming/finder-app/conf/assignment.txt ${OUTDIR}/rootfs/home/conf
-cp /home/ajbru/Documents/GitHub/LinuxSysProgramming/finder-app/autorun-qemu.sh ${OUTDIR}/rootfs/home
+cp conf/username.txt ${OUTDIR}/rootfs/home/conf
+cp conf/assignment.txt ${OUTDIR}/rootfs/home/conf
+cp autorun-qemu.sh ${OUTDIR}/rootfs/home
 
 # TODO: Chown the root directory
 
