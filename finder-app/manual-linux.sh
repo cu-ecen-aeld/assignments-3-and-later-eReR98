@@ -42,8 +42,6 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
     git checkout ${KERNEL_VERSION}
 
     # TODO: Add your kernel build steps here +
-    pwd
-    echo "compiling kernel"
 
     make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} mrproper
 
@@ -51,6 +49,7 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
 
     make -j4 ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} all
 
+    # Skipping this to save space and time. Keeping for reference
     #make ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) modules
 
     make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} dtbs
@@ -119,7 +118,7 @@ sudo mknod -m 600 ${OUTDIR}/rootfs/dev/console c 5 1
 
 # TODO: Clean and build the writer utility
 
-cd finder-app
+cd ${FINDER_APP_DIR}
 make clean
 make CROSS_COMPILE=${CROSS_COMPILE}
 
