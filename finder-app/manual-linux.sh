@@ -100,10 +100,10 @@ ${CROSS_COMPILE}readelf -a bin/busybox | grep "Shared library"
 
 # TODO: Add library dependencies to rootfs
 
-cp /home/ajbru/Documents/InstallFiles/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu/aarch64-none-linux-gnu/libc/lib/ld-linux-aarch64.so.1 "${OUTDIR}/rootfs/lib"
-cp /home/ajbru/Documents/InstallFiles/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu/aarch64-none-linux-gnu/libc/lib64/libm.so.6 "${OUTDIR}/rootfs/lib64"
-cp /home/ajbru/Documents/InstallFiles/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu/aarch64-none-linux-gnu/libc/lib64/libresolv.so.2 "${OUTDIR}/rootfs/lib64"
-cp /home/ajbru/Documents/InstallFiles/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu/aarch64-none-linux-gnu/libc/lib64/libc.so.6 "${OUTDIR}/rootfs/lib64"
+cp /home/ajbru/Documents/InstallFiles/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu/aarch64-none-linux-gnu/libc/lib/ld-linux-aarch64.so.1 ${OUTDIR}/rootfs/lib
+cp /home/ajbru/Documents/InstallFiles/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu/aarch64-none-linux-gnu/libc/lib64/libm.so.6 ${OUTDIR}/rootfs/lib64
+cp /home/ajbru/Documents/InstallFiles/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu/aarch64-none-linux-gnu/libc/lib64/libresolv.so.2 ${OUTDIR}/rootfs/lib64
+cp /home/ajbru/Documents/InstallFiles/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu/aarch64-none-linux-gnu/libc/lib64/libc.so.6 ${OUTDIR}/rootfs/lib64
 
 
 # TODO: Make device nodes
@@ -120,21 +120,21 @@ make CROSS_COMPILE=${CROSS_COMPILE}
 # TODO: Copy the finder related scripts and executables to the /home directory
 # on the target rootfs
 
-cp /home/ajbru/Documents/GitHub/LinuxSysProgramming/finder-app/writer "${OUTDIR}/rootfs/home"
-cp /home/ajbru/Documents/GitHub/LinuxSysProgramming/finder-app/finder.sh "${OUTDIR}/rootfs/home"
-cp /home/ajbru/Documents/GitHub/LinuxSysProgramming/finder-app/finder-test.sh "${OUTDIR}/rootfs/home"
-mkdir "${OUTDIR}/rootfs/home/conf"
-cp /home/ajbru/Documents/GitHub/LinuxSysProgramming/finder-app/conf/username.txt "${OUTDIR}/rootfs/home/conf"
-cp /home/ajbru/Documents/GitHub/LinuxSysProgramming/finder-app/conf/assignment.txt "${OUTDIR}/rootfs/home/conf"
-cp /home/ajbru/Documents/GitHub/LinuxSysProgramming/finder-app/autorun-qemu.sh "${OUTDIR}/rootfs/home"
+cp /home/ajbru/Documents/GitHub/LinuxSysProgramming/finder-app/writer ${OUTDIR}/rootfs/home
+cp /home/ajbru/Documents/GitHub/LinuxSysProgramming/finder-app/finder.sh ${OUTDIR}/rootfs/home
+cp /home/ajbru/Documents/GitHub/LinuxSysProgramming/finder-app/finder-test.sh ${OUTDIR}/rootfs/home
+mkdir ${OUTDIR}/rootfs/home/conf
+cp /home/ajbru/Documents/GitHub/LinuxSysProgramming/finder-app/conf/username.txt ${OUTDIR}/rootfs/home/conf
+cp /home/ajbru/Documents/GitHub/LinuxSysProgramming/finder-app/conf/assignment.txt ${OUTDIR}/rootfs/home/conf
+cp /home/ajbru/Documents/GitHub/LinuxSysProgramming/finder-app/autorun-qemu.sh ${OUTDIR}/rootfs/home
 
 # TODO: Chown the root directory
 
-cd "${OUTDIR}/rootfs"
+cd ${OUTDIR}/rootfs
 sudo chown -R root:root *
 
 # TODO: Create initramfs.cpio.gz
 
-cd "${OUTDIR}/rootfs"
-find . | cpio -H newc -ov --owner root:root > "${OUTDIR}/initramfs.cpio"
-gzip -f "${OUTDIR}/initramfs.cpio"
+cd ${OUTDIR}/rootfs
+find . | cpio -H newc -ov --owner root:root > ${OUTDIR}/initramfs.cpio
+gzip -f ${OUTDIR}/initramfs.cpio
