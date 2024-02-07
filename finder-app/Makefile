@@ -9,5 +9,8 @@ CC = gcc
 make: $(SRC)
 	$(CROSS_COMPILE)$(CC) $(CFLAGS) -o $(TARGET) $(SRC)
 
+all: 
+	$(CC) $(CFLAGS) $(INCLUDES) $(OBJS) -o $(TARGET) $(SRC) $(LDFLAGS)
+
 clean:
 	-rm -f *.o $(TARGET)
