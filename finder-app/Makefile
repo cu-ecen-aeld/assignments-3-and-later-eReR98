@@ -7,7 +7,7 @@ CC = gcc
 #CROSS_COMPILE =
 
 make: $(SRC)
-	$(CROSS_COMPILE)$(CC) $(CFLAGS) -o $(TARGET) $(SRC)
+	$(CC) $(CFLAGS) $(INCLUDES) $(OBJS) -o $(TARGET) $(SRC) $(LDFLAGS)
 
 all: 
 	$(CC) $(CFLAGS) $(INCLUDES) $(OBJS) -o $(TARGET) $(SRC) $(LDFLAGS)
