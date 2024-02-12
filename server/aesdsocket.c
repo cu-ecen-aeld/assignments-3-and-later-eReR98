@@ -78,22 +78,21 @@ int main(int argc, char*argv[])
     
     printf("\nendif\n");
     
-    struct sigaction new_action;
+    struct sigaction sigAct = {0};
 
-    new_action.sa_handler=signal_handler;
+    sigAct.sa_handler=signal_handler;
 
-    if( sigaction(SIGTERM, &new_action, NULL) != 0 ) {
+    if( sigaction(SIGTERM, &sigAct, NULL) != 0 ) {
         printf("Error %d (%s) registering for SIGTERM",errno,strerror(errno));
         return -1;
     }
-    if( sigaction(SIGINT, &new_action, NULL) ) {
+    if( sigaction(SIGINT, &sigAct, NULL) ) {
         printf("Error %d (%s) registering for SIGINT",errno,strerror(errno));
         return -1;
     }
 
     int ret;
     int sockfd;
-    int optval;
     int connecFd;
     ssize_t recvRet;
     struct sockaddr_in addr;
@@ -103,14 +102,6 @@ int main(int argc, char*argv[])
     socklen_t addrlen = sizeof(addr);
     remove(FILE_PATH);
     sockfd = socket(PF_INET, SOCK_STREAM, 0);
-
-    ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
-
-    if(ret != 0)
-    {
-        fprintf(stderr, "Error in setting socket options\n");
-        return -1;
-    }
 
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
@@ -199,7 +190,7 @@ int main(int argc, char*argv[])
             {
                 newlineFound = true;
             }
-            
+
             memset(&packetsReceived[0], '\0', sizeof(packetsReceived));
             memset(&buff[0], '\0', sizeof(buff));
         }
