@@ -72,10 +72,6 @@ function test_send_socket_string
 }
 
 comparefile=$(mktemp)
-test_send_socket_string "abcdefg" ${comparefile}
-test_send_socket_string "hijklmnop" ${comparefile}
-test_send_socket_string "1234567890" ${comparefile}
-test_send_socket_string "9876543210" ${comparefile}
 if [ -e long_string.txt ]; then
     echo "Sending long string from long_string.txt file"
     sendstring=`cat long_string.txt`

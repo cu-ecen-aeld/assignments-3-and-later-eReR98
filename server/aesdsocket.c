@@ -6,17 +6,45 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <netinet/in.h>
+#include <stdbool.h>
+#include <errno.h>
+#include <signal.h>
 
 #define MAX_CONNECTIONS 1
 #define PORT 9000
-#define BUFFER_SIZE 2048
+#define BUFFER_SIZE 40
 #define FILE_PATH "/var/tmp/aesdsocketdata"
+
+bool caught_sigint = false;
+bool caught_sigterm = false;
+bool success = true;
+
+int inet_ntop( int,  const void *restrict, char[16] , socklen_t);
+
+// borrowed from lecture
+static void signal_handler ( int signal_number )
+{
+    /**
+    * Save a copy of errno so we can restore it later.  See https://pubs.opengroup.org/onlinepubs/9699919799/
+    * "Operations which obtain the value of errno and operations which assign a value to errno shall be
+    *  async-signal-safe, provided that the signal-catching function saves the value of errno upon entry and
+    *  restores it before it returns."
+    */
+    int errno_saved = errno;
+    if ( signal_number == SIGINT ) {
+        caught_sigint = true;
+        printf("caught SIGINT\n");
+    } else if ( signal_number == SIGTERM ) {
+        caught_sigterm = true;
+        printf("caught SIGTERM\n");
+    }
+    errno = errno_saved;
+}
 
 int findPacketSize(char* packet)
 {
     int packetSize = 0;
     char currChar = packet[0];
-    //perror("start counting");
     while(1)
     {
         currChar = packet[packetSize+1];
@@ -26,13 +54,42 @@ int findPacketSize(char* packet)
         
         packetSize++;
     }
-    perror("done counting");
+    //perror("done counting");
     return packetSize;
 }
 
-int main(int argc, char**argv)
+int main(int argc, char*argv[])
 {
     openlog(NULL, 0, LOG_USER);
+
+    bool run_as_daemon = false;
+    printf("\n%s\n", argv[1]);
+    printf("\n%d\n", argc);
+    
+    if (argc > 1)
+    {   
+        printf("\nDAEMONTdfdfEST\n");
+        if(strstr(argv[1], "-d"))
+        {
+            run_as_daemon=true;
+            printf("\nDAEMONTEST\n");
+        }
+    }
+    
+    printf("\nendif\n");
+    
+    struct sigaction new_action;
+
+    new_action.sa_handler=signal_handler;
+
+    if( sigaction(SIGTERM, &new_action, NULL) != 0 ) {
+        printf("Error %d (%s) registering for SIGTERM",errno,strerror(errno));
+        return -1;
+    }
+    if( sigaction(SIGINT, &new_action, NULL) ) {
+        printf("Error %d (%s) registering for SIGINT",errno,strerror(errno));
+        return -1;
+    }
 
     int ret;
     int sockfd;
@@ -60,15 +117,30 @@ int main(int argc, char**argv)
     addr.sin_port = htons(PORT);
 
     ret = bind(sockfd, (struct sockaddr*) &addr, sizeof(addr));
-    perror("bound");
+
+    //perror("bound");
     if(ret != 0)
     {
         fprintf(stderr, "Error in binding to port\n");
         return -1;
     }
 
+    pid_t pid = 0;
+
+    if(run_as_daemon)
+    {
+        pid = fork();
+    }
+    
+    // Indicates this is the parent thread and should not do anything
+    if(pid != 0)
+    {
+        printf("daemon created\n");
+        return 0;
+    }
+
     ret = listen(sockfd, MAX_CONNECTIONS);
-    perror("listened");
+    //perror("listened");
     if(ret != 0)
     {
         fprintf(stderr, "Error in calling listen()\n");
@@ -82,16 +154,17 @@ int main(int argc, char**argv)
         syslog(LOG_DEBUG, "Unable to open file");
         return -1;
     }
-    int i = 0;
-    while(1)
+
+    while(success==true)
     {
-        perror("start accept");
+        //perror("start accept");
         connecFd = accept(sockfd, (struct sockaddr*) &addr, &addrlen);
-        perror("end accept");
+        //perror("end accept");
         if(connecFd < 0)
         {
             fprintf(stderr, "Error in accepting connection\n");
-            return -1;
+            success=false;
+            break;
         }
 
         //https://stackoverflow.com/questions/3060950/how-to-get-ip-address-from-sock-structure-in-c
@@ -103,41 +176,69 @@ int main(int argc, char**argv)
 
         syslog(LOG_DEBUG, "Accepted connection from %s", addrStr);
 
-        recvRet = recv(connecFd, buff, BUFFER_SIZE-1, 0);
-        if(recvRet < 0)
+        
+
+        bool newlineFound = false;
+
+        while(newlineFound == false)
         {
-            fprintf(stderr, "Error in read()\n");
-            return -1;
+            recvRet = recv(connecFd, buff, BUFFER_SIZE-1, 0);
+
+            if(recvRet < 0)
+            {
+                fprintf(stderr, "Error in read()\n");
+                success=false;
+                break;
+            }
+
+            char packetsReceived[BUFFER_SIZE];
+            strcpy(packetsReceived, buff); // this just removes extra null characters
+            fprintf(wrPointer, packetsReceived, 0);
+
+            if(strstr(packetsReceived, "\n"))
+            {
+                newlineFound = true;
+            }
+            
+            memset(&packetsReceived[0], '\0', sizeof(packetsReceived));
+            memset(&buff[0], '\0', sizeof(buff));
         }
-        
-        
 
-
-        char packetsReceived[findPacketSize(buff)+1];
-        strcpy(packetsReceived, buff);
-        packetsReceived[sizeof(packetsReceived)-1] = '\n';
-        fprintf(wrPointer, packetsReceived, 0);
+        perror("newlinefound");
         //fprintf(wrPointer, "\n");
-        if(i==1){
-            printf("test");
-        }
-        char sendBuff[BUFFER_SIZE] = {0};
-        fread(sendBuff, sizeof(sendBuff), 1, wrPointer);
+
+        // char sendBuff[BUFFER_SIZE] = {0};
+        // fread(sendBuff, sizeof(sendBuff), 1, wrPointer);
         //https://stackoverflow.com/questions/71976433/using-fread-to-read-a-text-based-file-best-practices
         fseek(wrPointer, 0, SEEK_END);
 
         long filesize = ftell(wrPointer);
         rewind(wrPointer);
-        char fileText[filesize ];
+        char fileText[filesize];
         //fileText[filesize] = '\n';
 
         fread(fileText, filesize, 1, wrPointer);
+        //fileText[filesize]='\n';
 
         ret = send(connecFd, fileText, sizeof(fileText), 0);
 
-        i++;
+        if( caught_sigint ) 
+        {
+            printf("\nCaught SIGINT!\n");
+            syslog(LOG_DEBUG, "Caught signal, exiting");
+            success=false;
+            break;
+        }
+
+        if( caught_sigterm ) 
+        {
+            printf("\nCaught SIGTERM!\n");
+            syslog(LOG_DEBUG, "Caught signal, exiting");
+            success=false;
+            break;
+        }
     }
-    
+    printf("Cleaning up\n");
     remove(FILE_PATH);
 
     close(connecFd);
