@@ -1,6 +1,6 @@
 SRC := aesdsocket.c
 TARGET = aesdsocket
-CFLAGS = -g -Wall
+CFLAGS = -g -Wall -Werror
 CC = gcc
 
 make: $(SRC)
