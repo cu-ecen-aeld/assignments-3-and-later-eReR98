@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <pthread.h>
+#include <fcntl.h>
 
 #include "queue.h"
 
@@ -25,7 +26,7 @@ bool caught_sigterm = false;
 bool success = true;
 
 struct sockaddr_in addr;
-FILE *wrPointer;
+
 pthread_mutex_t mutex;
 
 typedef struct threadParams_t
@@ -91,6 +92,8 @@ void *threadProc(void *threadParams)
 
         pthread_mutex_lock(&mutex);
 
+        FILE *fp = fopen(FILE_PATH, "a+");
+
         while(newlineFound == false)
         {
             recvRet = recv(connecFd, buff, BUFFER_SIZE-1, 0);
@@ -104,7 +107,7 @@ void *threadProc(void *threadParams)
 
             char packetsReceived[BUFFER_SIZE];
             strcpy(packetsReceived, buff); // this just removes extra null characters
-            fprintf(wrPointer, packetsReceived, 0);
+            fprintf(fp, packetsReceived, 0);
 
             if(strstr(packetsReceived, "\n"))
             {
@@ -116,13 +119,13 @@ void *threadProc(void *threadParams)
         }
 
         //https://stackoverflow.com/questions/71976433/using-fread-to-read-a-text-based-file-best-practices
-        fseek(wrPointer, 0, SEEK_END);
+        fseek(fp, 0, SEEK_END);
 
-        long filesize = ftell(wrPointer);
-        rewind(wrPointer);
+        long filesize = ftell(fp);
+        rewind(fp);
         char fileText[filesize];
 
-        fread(fileText, filesize, 1, wrPointer);
+        fread(fileText, filesize, 1, fp);
 
         send(connecFd, fileText, sizeof(fileText), 0);
 
@@ -139,8 +142,7 @@ void runTimer()
 {
     while(true)
     {
-        sleep(10);
-
+         sleep(10);
         char outstr[200];
         time_t t;
         struct tm *tmp;
@@ -151,22 +153,48 @@ void runTimer()
             perror("localtime");
             exit(EXIT_FAILURE);
         }
-        
-        if (strftime(outstr, sizeof(outstr), "%a, %d %b %Y %T %z", tmp) == 0) {
+        int numChars = strftime(outstr, sizeof(outstr), "%a, %d %b %Y %T %z", tmp);
+        if (numChars == 0) {
             fprintf(stderr, "strftime returned 0");
             exit(EXIT_FAILURE);
         }
 
         printf("Result string is \"%s\"\n", outstr);
 
-        printf("timer ran\n");
+        pthread_mutex_lock(&mutex);
+        int fd = open(FILE_PATH, O_WRONLY | O_CREAT | O_APPEND, 0666);
+        //printf("num of chars printed: %d\n", ret);
+        // if(ret < 0)
+        // {
+        //     printf("error in writing date. Return code: %d", ret);
+        // }
 
-        if(caught_sigint || caught_sigterm)
+        outstr[numChars] = '\n';
+        char prefix[] = "timestamp:";
+        write(fd, prefix, sizeof(prefix)-1);
+        write(fd, outstr, numChars+1);
+        
+
+        pthread_mutex_unlock(&mutex);
+
+        if( caught_sigint ) 
         {
-            exit(0);
+            printf("\nCaught SIGINT!\n");
+            syslog(LOG_DEBUG, "Caught signal, exiting");
+            success=false;
+            break;
         }
-    }
 
+        if( caught_sigterm ) 
+        {
+            printf("\nCaught SIGTERM!\n");
+            syslog(LOG_DEBUG, "Caught signal, exiting");
+            success=false;
+            break;
+        }
+       
+    }
+    
     //return NULL;
 }
 
@@ -184,6 +212,12 @@ int main(int argc, char*argv[])
         }
     }
     
+    remove(FILE_PATH);
+
+    // Forking for timer
+
+    pid_t pid_timer = fork();
+
     struct sigaction sigAct = {0};
 
     sigAct.sa_handler=signal_handler;
@@ -197,6 +231,12 @@ int main(int argc, char*argv[])
         return -1;
     }
 
+    if(pid_timer == 0)
+    {
+        runTimer();
+        return 0;
+    }
+
     slist_data_t *threadEntry = NULL;
     slist_data_t *threadEntry_temp = NULL;
 
@@ -207,7 +247,7 @@ int main(int argc, char*argv[])
     int sockfd;
     
     socklen_t addrlen = sizeof(addr);
-    remove(FILE_PATH);
+    
     sockfd = socket(PF_INET, SOCK_STREAM, 0);
 
     addr.sin_family = AF_INET;
@@ -242,24 +282,6 @@ int main(int argc, char*argv[])
     {
         fprintf(stderr, "Error in calling listen()\n");
         return -1;
-    }
-
-
-    wrPointer = fopen(FILE_PATH, "a+");
-    if(wrPointer==NULL)
-    {
-        syslog(LOG_DEBUG, "Unable to open file");
-        return -1;
-    }
-
-    // Forking for timer
-
-    pid = fork();
-
-    if(pid == 0)
-    {
-        runTimer();
-        return 0;
     }
 
     // begin main loop
