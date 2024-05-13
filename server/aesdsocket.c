@@ -26,11 +26,22 @@ bool success = true;
 
 struct sockaddr_in addr;
 FILE *wrPointer;
+pthread_mutex_t mutex;
 
 typedef struct threadParams_t
 {
     int connecFd_t;
+    bool threadCompletion_t;
 } threadParams_t;
+
+SLIST_HEAD(slisthead, slist_data_s);
+typedef struct slist_data_s slist_data_t;
+struct slist_data_s
+{
+    struct threadParams_t *threadInfo;
+    pthread_t threadId;
+    SLIST_ENTRY(slist_data_s) entries;
+} ;
 
 // just to avoid compiler warning
 int inet_ntop( int,  const void *restrict, char[16] , socklen_t);
@@ -64,6 +75,8 @@ void *threadProc(void *threadParams)
         struct threadParams_t* threadData = (struct threadParams_t *) threadParams;
 
         int connecFd = threadData->connecFd_t;
+        threadData->threadCompletion_t = false;
+
         ssize_t recvRet;
         char buff[BUFFER_SIZE] = {0};
 
@@ -75,6 +88,8 @@ void *threadProc(void *threadParams)
         syslog(LOG_DEBUG, "Accepted connection from %s", addrStr);
 
         bool newlineFound = false;
+
+        pthread_mutex_lock(&mutex);
 
         while(newlineFound == false)
         {
@@ -111,16 +126,54 @@ void *threadProc(void *threadParams)
 
         send(connecFd, fileText, sizeof(fileText), 0);
 
+        pthread_mutex_unlock(&mutex);
+
         syslog(LOG_DEBUG, "Closed connection from %s", addrStr);
 
-    close(connecFd);
-    return NULL;
+        close(connecFd);
+        threadData->threadCompletion_t=true;
+        return NULL;
+}
+
+void runTimer() 
+{
+    while(true)
+    {
+        sleep(10);
+
+        char outstr[200];
+        time_t t;
+        struct tm *tmp;
+
+        t = time(NULL);
+        tmp = localtime(&t);
+        if (tmp == NULL) {
+            perror("localtime");
+            exit(EXIT_FAILURE);
+        }
+        
+        if (strftime(outstr, sizeof(outstr), "%a, %d %b %Y %T %z", tmp) == 0) {
+            fprintf(stderr, "strftime returned 0");
+            exit(EXIT_FAILURE);
+        }
+
+        printf("Result string is \"%s\"\n", outstr);
+
+        printf("timer ran\n");
+
+        if(caught_sigint || caught_sigterm)
+        {
+            exit(0);
+        }
+    }
+
+    //return NULL;
 }
 
 int main(int argc, char*argv[])
 {
     openlog(NULL, 0, LOG_USER);
-
+    pthread_mutex_init(&mutex, NULL);
     bool run_as_daemon = false;
     
     if (argc > 1)
@@ -143,6 +196,12 @@ int main(int argc, char*argv[])
         printf("Error %d (%s) registering for SIGINT",errno,strerror(errno));
         return -1;
     }
+
+    slist_data_t *threadEntry = NULL;
+    slist_data_t *threadEntry_temp = NULL;
+
+    struct slisthead head;
+    SLIST_INIT(&head);
 
     int ret;
     int sockfd;
@@ -193,6 +252,16 @@ int main(int argc, char*argv[])
         return -1;
     }
 
+    // Forking for timer
+
+    pid = fork();
+
+    if(pid == 0)
+    {
+        runTimer();
+        return 0;
+    }
+
     // begin main loop
     while(success==true)
     {
@@ -225,13 +294,26 @@ int main(int argc, char*argv[])
 
         struct threadParams_t *threadData = (threadParams_t*)malloc(sizeof(threadParams_t));
         threadData->connecFd_t = connecFd;
+        threadData->threadCompletion_t = false;
 
         pthread_t newThread;
 
         pthread_create(&newThread, NULL, threadProc, threadData);
 
-    }
+        threadEntry = malloc(sizeof(slist_data_t));
+        threadEntry_temp = malloc(sizeof(slist_data_t));
+        threadEntry->threadId = newThread;
+        threadEntry->threadInfo = threadData;
+        SLIST_INSERT_HEAD(&head, threadEntry, entries);
 
+        SLIST_FOREACH_SAFE(threadEntry, &head, entries, threadEntry_temp) {
+            if (threadEntry->threadInfo->threadCompletion_t == true)
+            {
+                pthread_join(threadEntry->threadId, NULL);
+                SLIST_REMOVE(&head, threadEntry, slist_data_s, entries);
+            }
+        }
+    }
     remove(FILE_PATH);
 
     close(sockfd);
