@@ -1,4 +1,4 @@
-// Code for assignment 5 pt 1
+// Code for assignment 6 pt 1
 #include <stdio.h>
 #include <stdlib.h>
 #include <syslog.h>
@@ -11,6 +11,9 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <signal.h>
+#include <pthread.h>
+
+#include "queue.h"
 
 #define MAX_CONNECTIONS 1
 #define PORT 9000
@@ -20,6 +23,14 @@
 bool caught_sigint = false;
 bool caught_sigterm = false;
 bool success = true;
+
+struct sockaddr_in addr;
+FILE *wrPointer;
+
+typedef struct threadParams_t
+{
+    int connecFd_t;
+} threadParams_t;
 
 // just to avoid compiler warning
 int inet_ntop( int,  const void *restrict, char[16] , socklen_t);
@@ -46,98 +57,15 @@ static void signal_handler ( int signal_number )
     errno = errno_saved;
 }
 
-int main(int argc, char*argv[])
+void *threadProc(void *threadParams)
 {
-    openlog(NULL, 0, LOG_USER);
+    //https://stackoverflow.com/questions/3060950/how-to-get-ip-address-from-sock-structure-in-c
 
-    bool run_as_daemon = false;
-    
-    if (argc > 1)
-    {   
-        if(strstr(argv[1], "-d"))
-        {
-            run_as_daemon=true;
-        }
-    }
-    
-    struct sigaction sigAct = {0};
+        struct threadParams_t* threadData = (struct threadParams_t *) threadParams;
 
-    sigAct.sa_handler=signal_handler;
-
-    if( sigaction(SIGTERM, &sigAct, NULL) != 0 ) {
-        printf("Error %d (%s) registering for SIGTERM",errno,strerror(errno));
-        return -1;
-    }
-    if( sigaction(SIGINT, &sigAct, NULL) ) {
-        printf("Error %d (%s) registering for SIGINT",errno,strerror(errno));
-        return -1;
-    }
-
-    int ret;
-    int sockfd;
-    int connecFd;
-    ssize_t recvRet;
-    struct sockaddr_in addr;
-    char buff[BUFFER_SIZE] = {0};
-    
-    socklen_t addrlen = sizeof(addr);
-    remove(FILE_PATH);
-    sockfd = socket(PF_INET, SOCK_STREAM, 0);
-
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(PORT);
-
-    ret = bind(sockfd, (struct sockaddr*) &addr, sizeof(addr));
-
-    if(ret != 0)
-    {
-        fprintf(stderr, "Error in binding to port\n");
-        return -1;
-    }
-
-    pid_t pid = 0;
-
-    if(run_as_daemon)
-    {
-        pid = fork();
-    }
-    
-    // Indicates this is the parent thread and should not do anything
-    if(pid != 0)
-    {
-        printf("daemon created\n");
-        exit(0);
-    }
-
-    ret = listen(sockfd, MAX_CONNECTIONS);
-
-    if(ret != 0)
-    {
-        fprintf(stderr, "Error in calling listen()\n");
-        return -1;
-    }
-
-
-    FILE *wrPointer = fopen(FILE_PATH, "a+");
-    if(wrPointer==NULL)
-    {
-        syslog(LOG_DEBUG, "Unable to open file");
-        return -1;
-    }
-
-    while(success==true)
-    {
-        connecFd = accept(sockfd, (struct sockaddr*) &addr, &addrlen);
-
-        if(connecFd < 0)
-        {
-            fprintf(stderr, "Error in accepting connection\n");
-            success=false;
-            break;
-        }
-
-        //https://stackoverflow.com/questions/3060950/how-to-get-ip-address-from-sock-structure-in-c
+        int connecFd = threadData->connecFd_t;
+        ssize_t recvRet;
+        char buff[BUFFER_SIZE] = {0};
 
         struct sockaddr_in* pV4Addr = (struct sockaddr_in*)&addr;
         struct in_addr ipAddr = pV4Addr->sin_addr;
@@ -181,9 +109,102 @@ int main(int argc, char*argv[])
 
         fread(fileText, filesize, 1, wrPointer);
 
-        ret = send(connecFd, fileText, sizeof(fileText), 0);
+        send(connecFd, fileText, sizeof(fileText), 0);
 
         syslog(LOG_DEBUG, "Closed connection from %s", addrStr);
+
+    close(connecFd);
+    return NULL;
+}
+
+int main(int argc, char*argv[])
+{
+    openlog(NULL, 0, LOG_USER);
+
+    bool run_as_daemon = false;
+    
+    if (argc > 1)
+    {   
+        if(strstr(argv[1], "-d"))
+        {
+            run_as_daemon=true;
+        }
+    }
+    
+    struct sigaction sigAct = {0};
+
+    sigAct.sa_handler=signal_handler;
+
+    if( sigaction(SIGTERM, &sigAct, NULL) != 0 ) {
+        printf("Error %d (%s) registering for SIGTERM",errno,strerror(errno));
+        return -1;
+    }
+    if( sigaction(SIGINT, &sigAct, NULL) ) {
+        printf("Error %d (%s) registering for SIGINT",errno,strerror(errno));
+        return -1;
+    }
+
+    int ret;
+    int sockfd;
+    
+    socklen_t addrlen = sizeof(addr);
+    remove(FILE_PATH);
+    sockfd = socket(PF_INET, SOCK_STREAM, 0);
+
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(PORT);
+
+    ret = bind(sockfd, (struct sockaddr*) &addr, sizeof(addr));
+
+    if(ret != 0)
+    {
+        fprintf(stderr, "Error in binding to port\n");
+        return -1;
+    }
+
+    pid_t pid = 0;
+
+    if(run_as_daemon)
+    {
+        pid = fork();
+    }
+    
+    // Indicates this is the parent thread and should not do anything
+    if(pid != 0)
+    {
+        printf("daemon created\n");
+        exit(0);
+    }
+
+    ret = listen(sockfd, MAX_CONNECTIONS);
+
+    if(ret != 0)
+    {
+        fprintf(stderr, "Error in calling listen()\n");
+        return -1;
+    }
+
+
+    wrPointer = fopen(FILE_PATH, "a+");
+    if(wrPointer==NULL)
+    {
+        syslog(LOG_DEBUG, "Unable to open file");
+        return -1;
+    }
+
+    // begin main loop
+    while(success==true)
+    {
+        int connecFd;
+        connecFd = accept(sockfd, (struct sockaddr*) &addr, &addrlen);
+
+        if(connecFd < 0)
+        {
+            fprintf(stderr, "Error in accepting connection\n");
+            success=false;
+            break;
+        }
 
         if( caught_sigint ) 
         {
@@ -200,10 +221,18 @@ int main(int argc, char*argv[])
             success=false;
             break;
         }
-    }
-    remove(FILE_PATH);
 
-    close(connecFd);
+
+        struct threadParams_t *threadData = (threadParams_t*)malloc(sizeof(threadParams_t));
+        threadData->connecFd_t = connecFd;
+
+        pthread_t newThread;
+
+        pthread_create(&newThread, NULL, threadProc, threadData);
+
+    }
+
+    remove(FILE_PATH);
 
     close(sockfd);
 
