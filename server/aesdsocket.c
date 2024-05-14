@@ -320,7 +320,10 @@ int main(int argc, char*argv[])
         // do nothing
     }
     syslog(LOG_DEBUG, "finish creating timer");
-    
+
+    threadEntry_temp = malloc(sizeof(slist_data_t));
+    slist_data_t *threadEntry_temp_clean = threadEntry_temp;
+
     // begin main loop
     while(success==true)
     {
@@ -359,7 +362,6 @@ int main(int argc, char*argv[])
         pthread_create(&newThread, NULL, threadProc, threadData);
 
         threadEntry = malloc(sizeof(slist_data_t));
-        threadEntry_temp = malloc(sizeof(slist_data_t));
         threadEntry->threadId = newThread;
         threadEntry->threadInfo = threadData;
         SLIST_INSERT_HEAD(&head, threadEntry, entries);
@@ -379,6 +381,7 @@ int main(int argc, char*argv[])
     close(sockfd);
     free(threadEntry);
     free(threadEntry_temp);
+    free(threadEntry_temp_clean);
     pthread_join(timerThread, NULL);
     
     remove(FILE_PATH);
