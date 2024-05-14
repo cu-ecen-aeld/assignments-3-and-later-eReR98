@@ -16,7 +16,7 @@
 
 #include "queue.h"
 
-#define MAX_CONNECTIONS 1
+#define MAX_CONNECTIONS 10
 #define PORT 9000
 #define BUFFER_SIZE 40
 #define FILE_PATH "/var/tmp/aesdsocketdata"
@@ -25,9 +25,14 @@ bool caught_sigint = false;
 bool caught_sigterm = false;
 bool success = true;
 
+bool timerReady = false;
+
 struct sockaddr_in addr;
 
-pthread_mutex_t mutex;
+int sockfd;
+
+pthread_mutex_t file_mutex;
+pthread_t timerThread;
 
 typedef struct threadParams_t
 {
@@ -90,7 +95,8 @@ void *threadProc(void *threadParams)
 
         bool newlineFound = false;
 
-        pthread_mutex_lock(&mutex);
+        pthread_mutex_lock(&file_mutex);
+        syslog(LOG_DEBUG, "Mutex lock from %d", connecFd);
 
         FILE *fp = fopen(FILE_PATH, "a+");
 
@@ -128,9 +134,10 @@ void *threadProc(void *threadParams)
         fread(fileText, filesize, 1, fp);
 
         send(connecFd, fileText, sizeof(fileText), 0);
+        fclose(fp);
 
-        pthread_mutex_unlock(&mutex);
-
+        pthread_mutex_unlock(&file_mutex);
+        syslog(LOG_DEBUG, "Mutex unlock from %d", connecFd);
         syslog(LOG_DEBUG, "Closed connection from %s", addrStr);
 
         close(connecFd);
@@ -138,11 +145,51 @@ void *threadProc(void *threadParams)
         return NULL;
 }
 
-void runTimer() 
+void *runTimer() 
 {
-    while(true)
+    time_t prevTime = time(NULL);
+    time_t currTime = prevTime;
+    bool stopTimer = false;
+    syslog(LOG_DEBUG, "IN TIMER");
+    syslog(LOG_DEBUG, "IN TIMER");
+    syslog(LOG_DEBUG, "stoptimer is %d", stopTimer);
+    syslog(LOG_DEBUG, "IN TIMER");
+    while(stopTimer == false)
     {
-         sleep(10);
+        //syslog(LOG_DEBUG, "IN TIMER LOOP");
+        if( caught_sigint ) 
+        {
+            printf("\nCaught SIGINT! in timer\n");
+            syslog(LOG_DEBUG, "Caught signal in timer, exiting");
+            stopTimer=true;
+            break;
+        }
+
+        if( caught_sigterm ) 
+        {
+            printf("\nCaught SIGTERM! in timer\n");
+            syslog(LOG_DEBUG, "Caught signal in timer, exiting");
+            stopTimer=true;
+            break;
+        }
+
+        currTime = time(NULL);
+
+        if(timerReady==false)
+        {
+            timerReady = true;
+            syslog(LOG_DEBUG, "Timer ready");
+        }
+        //syslog(LOG_DEBUG, "Current time %d", (int) currTime);
+        //syslog(LOG_DEBUG, "previous time %d", (int) currTime);
+        //syslog(LOG_DEBUG, "Time difference %f", difftime(currTime, prevTime));
+        if(difftime(currTime, prevTime) < 10.0)
+        {
+            continue;
+        }
+
+        prevTime = currTime;
+
         char outstr[200];
         time_t t;
         struct tm *tmp;
@@ -159,10 +206,12 @@ void runTimer()
             exit(EXIT_FAILURE);
         }
 
-        printf("Result string is \"%s\"\n", outstr);
+        //printf("Result string is \"%s\"\n", outstr);
 
-        pthread_mutex_lock(&mutex);
+        pthread_mutex_lock(&file_mutex);
+        syslog(LOG_DEBUG, "got file mutex in timer");
         int fd = open(FILE_PATH, O_WRONLY | O_CREAT | O_APPEND, 0666);
+        
         //printf("num of chars printed: %d\n", ret);
         // if(ret < 0)
         // {
@@ -173,35 +222,21 @@ void runTimer()
         char prefix[] = "timestamp:";
         write(fd, prefix, sizeof(prefix)-1);
         write(fd, outstr, numChars+1);
-        
+        close(fd);
 
-        pthread_mutex_unlock(&mutex);
-
-        if( caught_sigint ) 
-        {
-            printf("\nCaught SIGINT!\n");
-            syslog(LOG_DEBUG, "Caught signal, exiting");
-            success=false;
-            break;
-        }
-
-        if( caught_sigterm ) 
-        {
-            printf("\nCaught SIGTERM!\n");
-            syslog(LOG_DEBUG, "Caught signal, exiting");
-            success=false;
-            break;
-        }
+        pthread_mutex_unlock(&file_mutex);
+        syslog(LOG_DEBUG, "released file mutex in timer");
        
     }
     
-    //return NULL;
+    return NULL;
 }
+
 
 int main(int argc, char*argv[])
 {
     openlog(NULL, 0, LOG_USER);
-    pthread_mutex_init(&mutex, NULL);
+    pthread_mutex_init(&file_mutex, NULL);
     bool run_as_daemon = false;
     
     if (argc > 1)
@@ -213,10 +248,6 @@ int main(int argc, char*argv[])
     }
     
     remove(FILE_PATH);
-
-    // Forking for timer
-
-    pid_t pid_timer = fork();
 
     struct sigaction sigAct = {0};
 
@@ -231,11 +262,7 @@ int main(int argc, char*argv[])
         return -1;
     }
 
-    if(pid_timer == 0)
-    {
-        runTimer();
-        return 0;
-    }
+    
 
     slist_data_t *threadEntry = NULL;
     slist_data_t *threadEntry_temp = NULL;
@@ -244,21 +271,23 @@ int main(int argc, char*argv[])
     SLIST_INIT(&head);
 
     int ret;
-    int sockfd;
+    
     
     socklen_t addrlen = sizeof(addr);
     
     sockfd = socket(PF_INET, SOCK_STREAM, 0);
+    int option = 1;
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
 
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(PORT);
 
     ret = bind(sockfd, (struct sockaddr*) &addr, sizeof(addr));
-
+    int errsv = errno;
     if(ret != 0)
     {
-        fprintf(stderr, "Error in binding to port\n");
+        fprintf(stderr, "Error in binding to port. Error code: %d\n", errsv);
         return -1;
     }
 
@@ -284,6 +313,14 @@ int main(int argc, char*argv[])
         return -1;
     }
 
+    syslog(LOG_DEBUG, "creating timer pthread");
+    pthread_create(&timerThread, NULL, runTimer, NULL);
+    while(timerReady == false)
+    {
+        // do nothing
+    }
+    syslog(LOG_DEBUG, "finish creating timer");
+    
     // begin main loop
     while(success==true)
     {
@@ -294,7 +331,7 @@ int main(int argc, char*argv[])
         {
             fprintf(stderr, "Error in accepting connection\n");
             success=false;
-            break;
+            
         }
 
         if( caught_sigint ) 
@@ -302,7 +339,7 @@ int main(int argc, char*argv[])
             printf("\nCaught SIGINT!\n");
             syslog(LOG_DEBUG, "Caught signal, exiting");
             success=false;
-            break;
+            
         }
 
         if( caught_sigterm ) 
@@ -310,7 +347,6 @@ int main(int argc, char*argv[])
             printf("\nCaught SIGTERM!\n");
             syslog(LOG_DEBUG, "Caught signal, exiting");
             success=false;
-            break;
         }
 
 
@@ -329,15 +365,22 @@ int main(int argc, char*argv[])
         SLIST_INSERT_HEAD(&head, threadEntry, entries);
 
         SLIST_FOREACH_SAFE(threadEntry, &head, entries, threadEntry_temp) {
-            if (threadEntry->threadInfo->threadCompletion_t == true)
+            if ((threadEntry->threadInfo->threadCompletion_t == true) || (success == false))
             {
                 pthread_join(threadEntry->threadId, NULL);
                 SLIST_REMOVE(&head, threadEntry, slist_data_s, entries);
+                free(threadEntry->threadInfo);
+                free(threadEntry);
             }
         }
+        free(threadEntry_temp);
     }
-    remove(FILE_PATH);
 
     close(sockfd);
-
+    free(threadEntry);
+    free(threadEntry_temp);
+    pthread_join(timerThread, NULL);
+    
+    remove(FILE_PATH);
+    
 }
