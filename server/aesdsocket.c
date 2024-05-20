@@ -188,7 +188,7 @@ void *runTimer()
         {
             continue;
         }
-
+        
         prevTime = currTime;
 
         char outstr[200];
@@ -226,6 +226,7 @@ void *runTimer()
         close(fd);
 
         pthread_mutex_unlock(&file_mutex);
+        printf(outstr);
         syslog(LOG_DEBUG, "released file mutex in timer");
        
     }
