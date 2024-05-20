@@ -226,7 +226,7 @@ void *runTimer()
         close(fd);
 
         pthread_mutex_unlock(&file_mutex);
-        printf(outstr);
+        printf("timestamp recorded\n");
         syslog(LOG_DEBUG, "released file mutex in timer");
        
     }
