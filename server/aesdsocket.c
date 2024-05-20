@@ -290,7 +290,7 @@ int main(int argc, char*argv[])
     
 
     int option = 1;
-
+    printf("REACHED SOCKET\n");
     sockfd = socket(serverInfo->ai_family, serverInfo->ai_socktype, serverInfo->ai_protocol);
 
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int));
@@ -333,17 +333,20 @@ int main(int argc, char*argv[])
     }
 
     syslog(LOG_DEBUG, "creating timer pthread");
+    printf("CREATING TIMER\n");
     pthread_create(&timerThread, NULL, runTimer, NULL);
     while(timerReady == false)
     {
         // do nothing
     }
     syslog(LOG_DEBUG, "finish creating timer");
+    printf("FINISH CREATING TIMER\n");
 
     threadEntry_temp = malloc(sizeof(slist_data_t));
     slist_data_t *threadEntry_temp_clean = threadEntry_temp;
 
     // begin main loop
+    printf("BEGIN MAIN LOOP\n");
     while(success==true)
     {
         int connecFd;
