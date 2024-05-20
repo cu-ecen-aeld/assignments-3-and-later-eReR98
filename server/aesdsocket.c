@@ -77,7 +77,7 @@ static void signal_handler ( int signal_number )
 void *threadProc(void *threadParams)
 {
     //https://stackoverflow.com/questions/3060950/how-to-get-ip-address-from-sock-structure-in-c
-
+        printf("thread spawned\n");
         struct threadParams_t* threadData = (struct threadParams_t *) threadParams;
 
         int connecFd = threadData->connecFd_t;
@@ -139,6 +139,7 @@ void *threadProc(void *threadParams)
         pthread_mutex_unlock(&file_mutex);
         syslog(LOG_DEBUG, "Mutex unlock from %d", connecFd);
         syslog(LOG_DEBUG, "Closed connection from %s", addrStr);
+        printf("thread closed\n");
 
         close(connecFd);
         threadData->threadCompletion_t=true;
@@ -150,10 +151,9 @@ void *runTimer()
     time_t prevTime = time(NULL);
     time_t currTime = prevTime;
     bool stopTimer = false;
-    syslog(LOG_DEBUG, "IN TIMER");
-    syslog(LOG_DEBUG, "IN TIMER");
     syslog(LOG_DEBUG, "stoptimer is %d", stopTimer);
     syslog(LOG_DEBUG, "IN TIMER");
+    printf("start timer\n");
     while(stopTimer == false)
     {
         //syslog(LOG_DEBUG, "IN TIMER LOOP");
@@ -179,6 +179,7 @@ void *runTimer()
         {
             timerReady = true;
             syslog(LOG_DEBUG, "Timer ready");
+            printf("timer ready\n");
         }
         //syslog(LOG_DEBUG, "Current time %d", (int) currTime);
         //syslog(LOG_DEBUG, "previous time %d", (int) currTime);
