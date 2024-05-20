@@ -278,8 +278,8 @@ int main(int argc, char*argv[])
     socklen_t addrlen = sizeof(addr);
     
     sockfd = socket(PF_INET, SOCK_STREAM, 0);
-    int option = 1;
-    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
+    // int option = 1;
+    // setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
 
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
