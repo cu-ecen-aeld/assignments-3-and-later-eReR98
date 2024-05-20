@@ -330,8 +330,9 @@ int main(int argc, char*argv[])
     while(success==true)
     {
         int connecFd;
+        printf("WAITING FOR CONNECTION\n");
         connecFd = accept(sockfd, (struct sockaddr*) &addr, &addrlen);
-
+        printf("CONNECTION FOUND\n")
         if(connecFd < 0)
         {
             fprintf(stderr, "Error in accepting connection\n");
