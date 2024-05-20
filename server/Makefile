@@ -1,6 +1,7 @@
 SRC := aesdsocket.c
 TARGET ?= aesdsocket
-CFLAGS ?= -pthread -g -Wall -Werror
+CFLAGS ?= -g -Wall -Werror
+LDFLAGS ?= -pthread
 CC ?= $(CROSS_COMPILE)gcc
 
 make: $(SRC)
