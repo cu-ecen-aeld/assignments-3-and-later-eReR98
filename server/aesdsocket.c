@@ -13,6 +13,7 @@
 #include <signal.h>
 #include <pthread.h>
 #include <fcntl.h>
+#include <netdb.h>
 
 #include "queue.h"
 
@@ -276,22 +277,38 @@ int main(int argc, char*argv[])
     
     
     socklen_t addrlen = sizeof(addr);
+
+    // Trying alternate way of setting up connection created by referencing rajohnson
+
+    struct addrinfo hints;
+    struct addrinfo* serverInfo;
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
+    getaddrinfo(NULL, "9000", &hints, &serverInfo);
     
-    sockfd = socket(PF_INET, SOCK_STREAM, 0);
-    // int option = 1;
-    // setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
 
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(PORT);
+    int option = 1;
 
-    ret = bind(sockfd, (struct sockaddr*) &addr, sizeof(addr));
-    int errsv = errno;
-    if(ret != 0)
-    {
-        fprintf(stderr, "Error in binding to port. Error code: %d\n", errsv);
-        return -1;
-    }
+    sockfd = socket(serverInfo->ai_family, serverInfo->ai_socktype, serverInfo->ai_protocol);
+
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int));
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int));
+    // // int option = 1;
+    // // setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
+
+    // addr.sin_family = AF_INET;
+    // addr.sin_addr.s_addr = INADDR_ANY;
+    // addr.sin_port = htons(PORT);
+
+    ret = bind(sockfd, serverInfo->ai_addr, serverInfo->ai_addrlen);
+    // int errsv = errno;
+    // if(ret != 0)
+    // {
+    //     fprintf(stderr, "Error in binding to port. Error code: %d\n", errsv);
+    //     return -1;
+    // }
 
     pid_t pid = 0;
 
