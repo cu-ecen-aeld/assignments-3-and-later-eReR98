@@ -335,10 +335,10 @@ int main(int argc, char*argv[])
     syslog(LOG_DEBUG, "creating timer pthread");
     printf("CREATING TIMER\n");
     pthread_create(&timerThread, NULL, runTimer, NULL);
-    while(timerReady == false)
-    {
-        // do nothing
-    }
+    // while(timerReady == false)
+    // {
+    //     // do nothing
+    // }
     syslog(LOG_DEBUG, "finish creating timer");
     printf("FINISH CREATING TIMER\n");
 
