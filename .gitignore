@@ -10,3 +10,4 @@ aesdsocket
 server/aesdsocket
 server/valgrind-out.txt
 actions-runner/
+finder-app/tempDownload/linux-stable/
