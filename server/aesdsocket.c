@@ -1,4 +1,6 @@
 // Code for assignment 6 pt 1
+
+// modified to save to /dev/aesdchar instead of a file
 #include <stdio.h>
 #include <stdlib.h>
 #include <syslog.h>
@@ -17,10 +19,17 @@
 
 #include "queue.h"
 
+#define USE_AESD_CHAR_DEVICE 0
+
 #define MAX_CONNECTIONS 10
 #define PORT 9000
 #define BUFFER_SIZE 40
-#define FILE_PATH "/var/tmp/aesdsocketdata"
+
+#if USE_AESD_CHAR_DEVICE
+    #define FILE_PATH "/dev/aesdchar"
+#else
+    #define FILE_PATH "/var/tmp/aesdsocketdata"
+#endif
 
 bool caught_sigint = false;
 bool caught_sigterm = false;
@@ -147,93 +156,95 @@ void *threadProc(void *threadParams)
         return NULL;
 }
 
-void *runTimer() 
-{
-    time_t prevTime = time(NULL);
-    time_t currTime = prevTime;
-    bool stopTimer = false;
-    syslog(LOG_DEBUG, "stoptimer is %d", stopTimer);
-    syslog(LOG_DEBUG, "IN TIMER");
-    printf("start timer\n");
-    while(stopTimer == false)
-    {
-        //syslog(LOG_DEBUG, "IN TIMER LOOP");
-        if( caught_sigint ) 
-        {
-            printf("\nCaught SIGINT! in timer\n");
-            syslog(LOG_DEBUG, "Caught signal in timer, exiting");
-            stopTimer=true;
-            break;
-        }
+// Commenting out timer for this code
 
-        if( caught_sigterm ) 
-        {
-            printf("\nCaught SIGTERM! in timer\n");
-            syslog(LOG_DEBUG, "Caught signal in timer, exiting");
-            stopTimer=true;
-            break;
-        }
+// void *runTimer() 
+// {
+//     time_t prevTime = time(NULL);
+//     time_t currTime = prevTime;
+//     bool stopTimer = false;
+//     syslog(LOG_DEBUG, "stoptimer is %d", stopTimer);
+//     syslog(LOG_DEBUG, "IN TIMER");
+//     printf("start timer\n");
+//     while(stopTimer == false)
+//     {
+//         //syslog(LOG_DEBUG, "IN TIMER LOOP");
+//         if( caught_sigint ) 
+//         {
+//             printf("\nCaught SIGINT! in timer\n");
+//             syslog(LOG_DEBUG, "Caught signal in timer, exiting");
+//             stopTimer=true;
+//             break;
+//         }
 
-        currTime = time(NULL);
+//         if( caught_sigterm ) 
+//         {
+//             printf("\nCaught SIGTERM! in timer\n");
+//             syslog(LOG_DEBUG, "Caught signal in timer, exiting");
+//             stopTimer=true;
+//             break;
+//         }
 
-        if(timerReady==false)
-        {
-            timerReady = true;
-            syslog(LOG_DEBUG, "Timer ready");
-            printf("timer ready\n");
-        }
-        //syslog(LOG_DEBUG, "Current time %d", (int) currTime);
-        //syslog(LOG_DEBUG, "previous time %d", (int) currTime);
-        //syslog(LOG_DEBUG, "Time difference %f", difftime(currTime, prevTime));
-        if(difftime(currTime, prevTime) < 10.0)
-        {
-            continue;
-        }
+//         currTime = time(NULL);
+
+//         if(timerReady==false)
+//         {
+//             timerReady = true;
+//             syslog(LOG_DEBUG, "Timer ready");
+//             printf("timer ready\n");
+//         }
+//         //syslog(LOG_DEBUG, "Current time %d", (int) currTime);
+//         //syslog(LOG_DEBUG, "previous time %d", (int) currTime);
+//         //syslog(LOG_DEBUG, "Time difference %f", difftime(currTime, prevTime));
+//         if(difftime(currTime, prevTime) < 10.0)
+//         {
+//             continue;
+//         }
         
-        prevTime = currTime;
+//         prevTime = currTime;
 
-        char outstr[200];
-        time_t t;
-        struct tm *tmp;
+//         char outstr[200];
+//         time_t t;
+//         struct tm *tmp;
 
-        t = time(NULL);
-        tmp = localtime(&t);
-        if (tmp == NULL) {
-            perror("localtime");
-            exit(EXIT_FAILURE);
-        }
-        int numChars = strftime(outstr, sizeof(outstr), "%a, %d %b %Y %T %z", tmp);
-        if (numChars == 0) {
-            fprintf(stderr, "strftime returned 0");
-            exit(EXIT_FAILURE);
-        }
+//         t = time(NULL);
+//         tmp = localtime(&t);
+//         if (tmp == NULL) {
+//             perror("localtime");
+//             exit(EXIT_FAILURE);
+//         }
+//         int numChars = strftime(outstr, sizeof(outstr), "%a, %d %b %Y %T %z", tmp);
+//         if (numChars == 0) {
+//             fprintf(stderr, "strftime returned 0");
+//             exit(EXIT_FAILURE);
+//         }
 
-        //printf("Result string is \"%s\"\n", outstr);
+//         //printf("Result string is \"%s\"\n", outstr);
 
-        pthread_mutex_lock(&file_mutex);
-        syslog(LOG_DEBUG, "got file mutex in timer");
-        int fd = open(FILE_PATH, O_WRONLY | O_CREAT | O_APPEND, 0666);
+//         pthread_mutex_lock(&file_mutex);
+//         syslog(LOG_DEBUG, "got file mutex in timer");
+//         int fd = open(FILE_PATH, O_WRONLY | O_CREAT | O_APPEND, 0666);
         
-        //printf("num of chars printed: %d\n", ret);
-        // if(ret < 0)
-        // {
-        //     printf("error in writing date. Return code: %d", ret);
-        // }
+//         //printf("num of chars printed: %d\n", ret);
+//         // if(ret < 0)
+//         // {
+//         //     printf("error in writing date. Return code: %d", ret);
+//         // }
 
-        outstr[numChars] = '\n';
-        char prefix[] = "timestamp:";
-        write(fd, prefix, sizeof(prefix)-1);
-        write(fd, outstr, numChars+1);
-        close(fd);
+//         outstr[numChars] = '\n';
+//         char prefix[] = "timestamp:";
+//         write(fd, prefix, sizeof(prefix)-1);
+//         write(fd, outstr, numChars+1);
+//         close(fd);
 
-        pthread_mutex_unlock(&file_mutex);
-        printf("timestamp recorded\n");
-        syslog(LOG_DEBUG, "released file mutex in timer");
+//         pthread_mutex_unlock(&file_mutex);
+//         printf("timestamp recorded\n");
+//         syslog(LOG_DEBUG, "released file mutex in timer");
        
-    }
+//     }
     
-    return NULL;
-}
+//     return NULL;
+// }
 
 
 int main(int argc, char*argv[])
@@ -332,15 +343,18 @@ int main(int argc, char*argv[])
         return -1;
     }
 
-    syslog(LOG_DEBUG, "creating timer pthread");
-    printf("CREATING TIMER\n");
-    pthread_create(&timerThread, NULL, runTimer, NULL);
+    //syslog(LOG_DEBUG, "creating timer pthread");
+    //printf("CREATING TIMER\n");
+    
+    // removed for A8
+    //pthread_create(&timerThread, NULL, runTimer, NULL);
+    
     // while(timerReady == false)
     // {
     //     // do nothing
     // }
-    syslog(LOG_DEBUG, "finish creating timer");
-    printf("FINISH CREATING TIMER\n");
+    //syslog(LOG_DEBUG, "finish creating timer");
+    //printf("FINISH CREATING TIMER\n");
 
     threadEntry_temp = malloc(sizeof(slist_data_t));
     slist_data_t *threadEntry_temp_clean = threadEntry_temp;
@@ -407,6 +421,8 @@ int main(int argc, char*argv[])
     free(threadEntry_temp_clean);
     pthread_join(timerThread, NULL);
     
-    remove(FILE_PATH);
+    #if !USE_AESD_CHAR_DEVICE
+        remove(FILE_PATH);
+    #endif
     
 }
