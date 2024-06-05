@@ -30,8 +30,11 @@ int aesd_open(struct inode *inode, struct file *filp)
 {
     PDEBUG("open");
     /**
-     * TODO: handle open
+     * DO: handle open
      */
+
+    filp->private_data = container_of(inode->i_cdev, struct aesd_dev, cdev);
+
     return 0;
 }
 
@@ -39,7 +42,7 @@ int aesd_release(struct inode *inode, struct file *filp)
 {
     PDEBUG("release");
     /**
-     * TODO: handle release
+     * DO: handle release
      */
     return 0;
 }
@@ -48,10 +51,50 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
                 loff_t *f_pos)
 {
     ssize_t retval = 0;
+
+    struct aesd_buffer_entry *tempEntry;
+    size_t char_offset = 0;
+    size_t char_remaining = 0;
+
     PDEBUG("read %zu bytes with offset %lld",count,*f_pos);
     /**
      * TODO: handle read
      */
+    
+    if (mutex_lock_interruptible(&aesd_device.aesdLock) !=0)
+    {
+        return -ERESTART;
+    }
+
+    tempEntry = aesd_circular_buffer_find_entry_offset_for_fpos(&(aesd_device.circBuff), *f_pos, &char_offset);
+    
+    if(tempEntry == NULL)
+    {
+        retval=0;
+    } 
+    else
+    {
+        char_remaining = tempEntry->size - char_offset;
+
+        if(count == char_remaining)
+        {
+            retval = count;
+        } 
+        else
+        {
+            retval = char_remaining;
+        }
+
+        if(copy_to_user(buf, tempEntry->buffptr + char_offset, retval) != 0)
+        {
+            retval = -1;
+        }
+    } 
+
+    *f_pos = *f_pos + retval;
+
+    mutex_unlock(&aesd_device.aesdLock);
+
     return retval;
 }
 
@@ -103,8 +146,10 @@ int aesd_init_module(void)
     memset(&aesd_device,0,sizeof(struct aesd_dev));
 
     /**
-     * TODO: initialize the AESD specific portion of the device
+     * DO: initialize the AESD specific portion of the device
      */
+
+    mutex_init(&aesd_device.aesdLock);
 
     result = aesd_setup_cdev(&aesd_device);
 
