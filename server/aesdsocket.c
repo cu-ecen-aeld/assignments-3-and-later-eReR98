@@ -20,7 +20,7 @@
 #include "queue.h"
 #include <sys/stat.h>
 
-#define USE_AESD_CHAR_DEVICE 0
+#define USE_AESD_CHAR_DEVICE 1
 
 #define MAX_CONNECTIONS 10
 #define PORT 9000
