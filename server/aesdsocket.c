@@ -29,7 +29,7 @@
 #if USE_AESD_CHAR_DEVICE
     #define FILE_PATH "/dev/aesdchar"
 #else
-    #define FILE_PATH "/var/tmp/aesdsocketdata"
+    #define FILE_PATH "/dev/aesdchar"
 #endif
 
 bool caught_sigint = false;
@@ -438,9 +438,5 @@ int main(int argc, char*argv[])
     free(threadEntry_temp);
     free(threadEntry_temp_clean);
     pthread_join(timerThread, NULL);
-    
-    #if !USE_AESD_CHAR_DEVICE
-        remove(FILE_PATH);
-    #endif
     
 }
