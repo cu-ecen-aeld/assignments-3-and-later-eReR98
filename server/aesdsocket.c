@@ -18,8 +18,9 @@
 #include <netdb.h>
 
 #include "queue.h"
+#include <sys/stat.h>
 
-#define USE_AESD_CHAR_DEVICE 1
+#define USE_AESD_CHAR_DEVICE 0
 
 #define MAX_CONNECTIONS 10
 #define PORT 9000
@@ -107,9 +108,9 @@ void *threadProc(void *threadParams)
 
         pthread_mutex_lock(&file_mutex);
         syslog(LOG_DEBUG, "Mutex lock from %d", connecFd);
-
-        FILE *fp = fopen(FILE_PATH, "a+");
-
+        printf("before open");
+        int newfd = open(FILE_PATH, O_CREAT | O_RDWR | O_APPEND, S_IRWXU | S_IRWXG | S_IRWXO);
+        printf("after open");
         while(newlineFound == false)
         {
             recvRet = recv(connecFd, buff, BUFFER_SIZE-1, 0);
@@ -123,28 +124,45 @@ void *threadProc(void *threadParams)
 
             char packetsReceived[BUFFER_SIZE];
             strcpy(packetsReceived, buff); // this just removes extra null characters
-            fprintf(fp, packetsReceived, 0);
-
+            //fprintf(newfd, packetsReceived, 0);
+            write(newfd, buff, recvRet);
+            printf("current buff:\n");
+            printf("%s",buff);
+            printf("\n");
             if(strstr(packetsReceived, "\n"))
             {
                 newlineFound = true;
             }
             // clearing out buffers
+            printf("startclearbuffer\n");
             memset(&packetsReceived[0], '\0', sizeof(packetsReceived));
             memset(&buff[0], '\0', sizeof(buff));
+            printf("endclearbuffer\n");
+        }
+        printf("startlseek\n");
+        //https://stackoverflow.com/questions/71976433/using-fread-to-read-a-text-based-file-best-practices
+        lseek(newfd, 0, SEEK_SET);
+        printf("endlseek\n");
+        int bytesRead = BUFFER_SIZE;
+        memset(buff, 0, sizeof(buff));
+
+        while(bytesRead > 0)
+        {
+            bytesRead = read(newfd, buff, BUFFER_SIZE);
+            send(connecFd, buff, bytesRead, 0);
+            memset(buff, 0, sizeof(buff));
+            
+            
         }
 
-        //https://stackoverflow.com/questions/71976433/using-fread-to-read-a-text-based-file-best-practices
-        fseek(fp, 0, SEEK_END);
+        // long filesize = ftell(fp);
+        // rewind(fp);
+        // char fileText[filesize];
 
-        long filesize = ftell(fp);
-        rewind(fp);
-        char fileText[filesize];
+        // fread(fileText, filesize, 1, fp);
 
-        fread(fileText, filesize, 1, fp);
-
-        send(connecFd, fileText, sizeof(fileText), 0);
-        fclose(fp);
+        // send(connecFd, fileText, sizeof(fileText), 0);
+        // fclose(fp);
 
         pthread_mutex_unlock(&file_mutex);
         syslog(LOG_DEBUG, "Mutex unlock from %d", connecFd);
