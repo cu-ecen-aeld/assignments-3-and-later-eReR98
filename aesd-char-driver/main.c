@@ -16,6 +16,7 @@
 #include <linux/printk.h>
 #include <linux/types.h>
 #include <linux/cdev.h>
+#include <linux/slab.h>
 #include <linux/fs.h> // file_operations
 #include "aesdchar.h"
 int aesd_major =   0; // use dynamic major
@@ -102,10 +103,64 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
                 loff_t *f_pos)
 {
     ssize_t retval = -ENOMEM;
+    size_t curr_count = 0;
     PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
     /**
      * TODO: handle write
      */
+
+    if(mutex_lock_interruptible(&(aesd_device.aesdLock)) != 0)
+    { 
+        return -1;
+    }
+
+    if(aesd_device.buffString == NULL)
+    {
+        aesd_device.buffString = kmalloc(count, GFP_KERNEL);
+
+        if(copy_from_user(&aesd_device.buffString[0], buf, count) != 0)
+        {
+            retval = -1;
+        }
+        else
+        {
+            retval = count;
+        }
+
+    }
+    else
+    {
+        char* tempChar = aesd_device.buffString;
+        curr_count = strlen(tempChar);
+        aesd_device.buffString = kmalloc(curr_count+count, GFP_KERNEL);
+        strcpy(aesd_device.buffString, tempChar);
+        
+        kfree(tempChar);
+
+        if(copy_from_user(&aesd_device.buffString[curr_count], buf, count) != 0)
+        {
+            retval = -1;
+        }
+        else
+        {
+            retval = count;
+        }
+    }
+
+
+    if(aesd_device.buffString[(count+curr_count) - 1] == '\n')
+    {
+        struct aesd_buffer_entry *retEntry;
+        struct aesd_buffer_entry *newEntry; 
+        newEntry = kmalloc(sizeof(struct aesd_buffer_entry), GFP_KERNEL);
+        newEntry->size=count+curr_count;
+        newEntry->buffptr=aesd_device.buffString;
+
+        retEntry = aesd_circular_buffer_add_entry(&aesd_device.circBuff, newEntry);
+
+    }
+
+    mutex_unlock(&(aesd_device.aesdLock)); 
     return retval;
 }
 struct file_operations aesd_fops = {

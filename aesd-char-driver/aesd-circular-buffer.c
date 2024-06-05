@@ -41,12 +41,13 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
 
     while(charFound == false)
     {
+        int entryIndex = 0; 
         if(loopCnt >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)
         {
             break;
         }
 
-        int entryIndex = (buffer->out_offs + loopCnt) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+        entryIndex = (buffer->out_offs + loopCnt) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
 
         tempEntry = &buffer->entry[entryIndex];
 
@@ -74,11 +75,12 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
 * Any necessary locking must be handled by the caller
 * Any memory referenced in @param add_entry must be allocated by and/or must have a lifetime managed by the caller.
 */
-void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const struct aesd_buffer_entry *add_entry)
+struct aesd_buffer_entry *aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const struct aesd_buffer_entry *add_entry)
 {
     /**
     * TODO: implement per description
     */
+    struct aesd_buffer_entry *retEntry = &buffer->entry[buffer->in_offs];
 
     (buffer->entry[buffer->in_offs]) = *add_entry;
     
@@ -95,6 +97,7 @@ void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const s
     {
         buffer->out_offs = buffer->in_offs;
     }
+    return retEntry;
 }
 
 /**
