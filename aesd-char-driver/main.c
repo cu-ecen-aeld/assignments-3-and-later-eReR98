@@ -135,7 +135,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         aesd_device.buffString = kmalloc(curr_count+count+1, GFP_KERNEL);
         strcpy(aesd_device.buffString, tempChar);
         
-        //kfree(tempChar);
+        kfree(tempChar);
 
         if(copy_from_user(&aesd_device.buffString[curr_count], buf, count) != 0)
         {
@@ -150,7 +150,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 
     if(aesd_device.buffString[(count+curr_count) - 1] == '\n')
     {
-        struct aesd_buffer_entry *retEntry;
+        const char *retEntry;
         struct aesd_buffer_entry *newEntry; 
         newEntry = kmalloc(sizeof(struct aesd_buffer_entry), GFP_KERNEL);
         newEntry->size=count+curr_count;
