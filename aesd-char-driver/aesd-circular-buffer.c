@@ -106,4 +106,7 @@ const char *aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, 
 void aesd_circular_buffer_init(struct aesd_circular_buffer *buffer)
 {
     memset(buffer,0,sizeof(struct aesd_circular_buffer));
+    buffer->full = false;
+    buffer->out_offs = 0;
+    buffer->in_offs = 0;
 }
