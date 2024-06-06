@@ -133,11 +133,12 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     {
         char* tempChar = aesd_device.buffString;
         curr_count = strlen(tempChar);
-        aesd_device.buffString = kmalloc(curr_count+count, GFP_KERNEL);
-        memset(aesd_device.buffString, 0, curr_count+count);
-        strcpy(aesd_device.buffString, tempChar);
+        //aesd_device.buffString = kmalloc(curr_count+count, GFP_KERNEL);
+        aesd_device.buffString = krealloc(aesd_device.buffString, curr_count + count + 1, GFP_KERNEL);
+        memset(&aesd_device.buffString[curr_count], 0, curr_count+count);
+        //strcpy(aesd_device.buffString, tempChar);
         
-        kfree(tempChar);
+        //kfree(tempChar);
 
         if(copy_from_user(&aesd_device.buffString[curr_count], buf, count) != 0)
         {
