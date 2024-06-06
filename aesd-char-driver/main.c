@@ -116,8 +116,8 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 
     if(aesd_device.buffString == NULL)
     {
-        aesd_device.buffString = kmalloc(count, GFP_KERNEL);
-        memset(aesd_device.buffString, 0, count);
+        aesd_device.buffString = kmalloc(count+1, GFP_KERNEL);
+        memset(aesd_device.buffString, 0, count+1);
 
         if(copy_from_user(&aesd_device.buffString[0], buf, count) != 0)
         {
@@ -160,6 +160,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 
         retEntry = aesd_circular_buffer_add_entry(&aesd_device.circBuff, newEntry);
         kfree(retEntry);
+        aesd_device.buffString = NULL;
     }
 
     mutex_unlock(&(aesd_device.aesdLock)); 
