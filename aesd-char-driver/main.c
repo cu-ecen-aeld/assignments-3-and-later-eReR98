@@ -221,13 +221,27 @@ int aesd_init_module(void)
 
 void aesd_cleanup_module(void)
 {
+    struct aesd_buffer_entry *tempEntry;
+    size_t i;
+
     dev_t devno = MKDEV(aesd_major, aesd_minor);
 
     cdev_del(&aesd_device.cdev);
 
+
+
     /**
      * TODO: cleanup AESD specific poritions here as necessary
      */
+
+    kfree(aesd_device.buffString);
+
+    AESD_CIRCULAR_BUFFER_FOREACH(tempEntry, &aesd_device.circBuff, i)
+    {
+        kfree(tempEntry->buffptr);
+    }
+
+    mutex_destroy(&aesd_device.aesdLock);
     
     unregister_chrdev_region(devno, 1);
 }
