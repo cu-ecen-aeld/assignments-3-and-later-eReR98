@@ -23,7 +23,7 @@
 #include "../aesd-char-driver/aesd_ioctl.h"
 #include <sys/ioctl.h>
 
-#define IOCTL_CMD "AESDCHAR_IOCSEEKTO:"
+#define IOCTL_CMD "AESDCHAR_IOCSEEKTO:%u,%u"
 
 #define USE_AESD_CHAR_DEVICE 1
 
@@ -139,21 +139,19 @@ void *threadProc(void *threadParams)
 
             // checking for command in string
 
-            char *cmdMatch = strstr(packetsReceived, IOCTL_CMD);
             int arg1 = 0;
             int arg2 = 0;
 
-            if(cmdMatch)
+            if(sscanf(packetsReceived, IOCTL_CMD, &arg1, &arg2) == 2)
             {
                 
                 cmdFound = true;
                 cmdFound=cmdFound; // temp fix
 
-                sscanf(cmdMatch, "%*[^0123456789]%d%*[^0123456789]%d", &arg1, &arg2);
                 seekto.write_cmd=arg1;
                 seekto.write_cmd_offset=arg2;
 
-                printf("COMMAND FOUND: %s, arg1=%d, arg2=%d\n", cmdMatch, arg1, arg2);
+                printf("COMMAND FOUND, arg1=%d, arg2=%d\n", arg1, arg2);
                 if(ioctl(newfd, AESDCHAR_IOCSEEKTO, &seekto) != 0)
                 {
                     newlineFound = true;
