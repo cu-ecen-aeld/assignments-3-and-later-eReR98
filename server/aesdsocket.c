@@ -156,10 +156,11 @@ void *threadProc(void *threadParams)
                 printf("COMMAND FOUND: %s, arg1=%d, arg2=%d\n", cmdMatch, arg1, arg2);
                 if(ioctl(newfd, AESDCHAR_IOCSEEKTO, &seekto) != 0)
                 {
+                    newlineFound = true;
                     break;
                 }
                 
-                
+                break;
             } 
             else 
             {
@@ -202,7 +203,7 @@ void *threadProc(void *threadParams)
         while((bytesRead > 0))
         {
             bytesRead = read(newfd, buff, BUFFER_SIZE);
-            syslog(LOG_CRIT, "buffer read by aesdsocket: %s", buff);
+            printf("\n %d bytes read into buffer: %s\n", bytesRead, buff);
             send(connecFd, buff, bytesRead, 0);
             memset(buff, 0, sizeof(buff));
             
