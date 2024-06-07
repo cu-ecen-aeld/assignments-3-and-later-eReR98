@@ -27,6 +27,21 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 struct aesd_dev aesd_device;
 
+loff_t aesd_llseek(struct file *filp, loff_t offset, int whence)
+{
+    loff_t retval = 0;
+
+    return retval;
+}
+
+long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+    long retval = 0;
+
+    return retval;
+
+}
+
 int aesd_open(struct inode *inode, struct file *filp)
 {
     PDEBUG("open");
@@ -92,7 +107,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         }
     } 
 
-    *f_pos = *f_pos + retval;
+    *f_pos = *f_pos + retval; // Should work for lseek
 
     mutex_unlock(&aesd_device.aesdLock);
 
@@ -161,16 +176,20 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         aesd_device.buffString = NULL;
     }
 
+    *f_pos = *f_pos + retval; // for lseek
+
     mutex_unlock(&(aesd_device.aesdLock)); 
     return retval;
 }
 
 struct file_operations aesd_fops = {
-    .owner =    THIS_MODULE,
-    .read =     aesd_read,
-    .write =    aesd_write,
-    .open =     aesd_open,
-    .release =  aesd_release,
+    .owner =            THIS_MODULE,
+    .read =             aesd_read,
+    .write =            aesd_write,
+    .open =             aesd_open,
+    .release =          aesd_release,
+    .llseek =           aesd_llseek,
+    .unlocked_ioctl =   aesd_ioctl,
 };
 
 static int aesd_setup_cdev(struct aesd_dev *dev)

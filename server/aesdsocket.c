@@ -20,6 +20,8 @@
 #include "queue.h"
 #include <sys/stat.h>
 
+#include "../aesd-char-driver/aesd_ioctl.h"
+
 #define USE_AESD_CHAR_DEVICE 1
 
 #define MAX_CONNECTIONS 10
@@ -279,7 +281,7 @@ int main(int argc, char*argv[])
         }
     }
     
-    remove(FILE_PATH);
+    //remove(FILE_PATH);
 
     struct sigaction sigAct = {0};
 
