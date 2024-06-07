@@ -19,6 +19,8 @@
 #include <linux/slab.h>
 #include <linux/fs.h> // file_operations
 #include "aesdchar.h"
+#include "aesd_ioctl.h"
+
 int aesd_major =   0; // use dynamic major
 int aesd_minor =   0;
 
@@ -29,7 +31,29 @@ struct aesd_dev aesd_device;
 
 loff_t aesd_llseek(struct file *filp, loff_t offset, int whence)
 {
+
     loff_t retval = 0;
+    loff_t totalSize = 0;
+    loff_t new_fpos = 0;
+    size_t i = 0;
+    struct aesd_buffer_entry *tempEntry;
+
+    if(mutex_lock_interruptible(&(aesd_device.aesdLock)) != 0)
+    {
+        return -1;
+    }
+
+    AESD_CIRCULAR_BUFFER_FOREACH(tempEntry, &aesd_device.circBuff, i)
+    {
+        totalSize += tempEntry->size;
+    }
+
+    new_fpos = fixed_size_llseek(filp, offset, whence, totalSize); //kernel provided
+
+    filp->f_pos = new_fpos;
+    retval = new_fpos;
+
+    mutex_unlock(&(aesd_device.aesdLock));
 
     return retval;
 }
@@ -37,8 +61,60 @@ loff_t aesd_llseek(struct file *filp, loff_t offset, int whence)
 long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
     long retval = 0;
+    
+
+    if(mutex_lock_interruptible(&(aesd_device.aesdLock)) != 0)
+    {
+        return -1;
+    }
+
+
+    switch(cmd)
+    {
+        case AESDCHAR_IOCSEEKTO:
+        {
+            struct aesd_seekto seekto;
+            loff_t totalCnt = 0;
+
+            if(copy_from_user(&seekto, (const void __user *)arg, sizeof(seekto)) != 0)
+            {
+                retval = EFAULT;
+            }
+            else
+            {
+                //retval = aesd_adjust_file_offset(filp,seekto.write_cmd, seekto.write_cmd_offset);
+                
+                // compiler didn't like the for loop
+                // for(int i = 0; i < seekto.write_cmd; i++)
+                // {
+                //     totalCnt += aesd_device.circBuff.entry[i].size;
+                // }
+
+                size_t i=0;
+
+                while(i < seekto.write_cmd)
+                {
+                    totalCnt += aesd_device.circBuff.entry[i].size;
+                    i++;
+                }
+
+                totalCnt += seekto.write_cmd_offset;
+
+                filp->f_pos = totalCnt;
+            }
+            break;
+        }
+
+        default:
+        {
+            retval = -1;
+        }
+    }
+
+    mutex_unlock(&(aesd_device.aesdLock));
 
     return retval;
+
 
 }
 
