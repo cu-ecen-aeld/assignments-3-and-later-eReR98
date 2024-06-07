@@ -21,18 +21,23 @@
 #include <sys/stat.h>
 
 #include "../aesd-char-driver/aesd_ioctl.h"
+#include <sys/ioctl.h>
+
+#define IOCTL_CMD "AESDCHAR_IOCSEEKTO:"
 
 #define USE_AESD_CHAR_DEVICE 1
 
 #define MAX_CONNECTIONS 10
 #define PORT 9000
-#define BUFFER_SIZE 40
+#define BUFFER_SIZE 128
 
 #if USE_AESD_CHAR_DEVICE
     #define FILE_PATH "/dev/aesdchar"
 #else
     #define FILE_PATH "/dev/aesdchar"
 #endif
+
+struct aesd_seekto seekto;
 
 bool caught_sigint = false;
 bool caught_sigterm = false;
@@ -91,6 +96,9 @@ void *threadProc(void *threadParams)
 {
     //https://stackoverflow.com/questions/3060950/how-to-get-ip-address-from-sock-structure-in-c
         printf("thread spawned\n");
+
+        bool cmdFound = false;
+
         struct threadParams_t* threadData = (struct threadParams_t *) threadParams;
 
         int connecFd = threadData->connecFd_t;
@@ -127,6 +135,30 @@ void *threadProc(void *threadParams)
             char packetsReceived[BUFFER_SIZE];
             strcpy(packetsReceived, buff); // this just removes extra null characters
             //fprintf(newfd, packetsReceived, 0);
+
+            // checking for command in string
+
+            char *cmdMatch = strstr(packetsReceived, IOCTL_CMD);
+            int arg1 = 0;
+            int arg2 = 0;
+
+            if(cmdMatch)
+            {
+                cmdFound = true;
+
+                sscanf(cmdMatch, "%*[^0123456789]%d%*[^0123456789]%d", &arg1, &arg2);
+                struct aesd_seekto seekto;
+                seekto.write_cmd=arg1;
+                seekto.write_cmd_offset=arg2;
+                if(ioctl(newfd, AESDCHAR_IOCSEEKTO, &seekto) != 0)
+                {
+                    break;
+                }
+
+                break;
+            }
+
+
             write(newfd, buff, recvRet);
             printf("current buff:\n");
             printf("%s",buff);
@@ -135,6 +167,7 @@ void *threadProc(void *threadParams)
             {
                 newlineFound = true;
             }
+
             // clearing out buffers
             printf("startclearbuffer\n");
             memset(&packetsReceived[0], '\0', sizeof(packetsReceived));
@@ -148,7 +181,7 @@ void *threadProc(void *threadParams)
         int bytesRead = BUFFER_SIZE;
         memset(buff, 0, sizeof(buff));
 
-        while(bytesRead > 0)
+        while((bytesRead > 0) && cmdFound == false)
         {
             bytesRead = read(newfd, buff, BUFFER_SIZE);
             send(connecFd, buff, bytesRead, 0);
