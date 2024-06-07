@@ -96,8 +96,9 @@ void *threadProc(void *threadParams)
 {
     //https://stackoverflow.com/questions/3060950/how-to-get-ip-address-from-sock-structure-in-c
         printf("thread spawned\n");
-
+        struct aesd_seekto seekto;
         bool cmdFound = false;
+
 
         struct threadParams_t* threadData = (struct threadParams_t *) threadParams;
 
@@ -144,29 +145,37 @@ void *threadProc(void *threadParams)
 
             if(cmdMatch)
             {
+                
                 cmdFound = true;
+                cmdFound=cmdFound; // temp fix
 
                 sscanf(cmdMatch, "%*[^0123456789]%d%*[^0123456789]%d", &arg1, &arg2);
-                struct aesd_seekto seekto;
                 seekto.write_cmd=arg1;
                 seekto.write_cmd_offset=arg2;
+
+                printf("COMMAND FOUND: %s, arg1=%d, arg2=%d\n", cmdMatch, arg1, arg2);
                 if(ioctl(newfd, AESDCHAR_IOCSEEKTO, &seekto) != 0)
                 {
                     break;
                 }
-
-                break;
-            }
-
-
-            write(newfd, buff, recvRet);
-            printf("current buff:\n");
-            printf("%s",buff);
-            printf("\n");
-            if(strstr(packetsReceived, "\n"))
+                
+                
+            } 
+            else 
             {
-                newlineFound = true;
+                write(newfd, buff, recvRet);
+                printf("current buff:\n");
+                printf("%s",buff);
+                printf("\n");
+                if(strstr(packetsReceived, "\n"))
+                {
+                    newlineFound = true;
+                    lseek(newfd, 0, SEEK_SET);
+                }
             }
+
+
+
 
             // clearing out buffers
             printf("startclearbuffer\n");
@@ -176,14 +185,24 @@ void *threadProc(void *threadParams)
         }
         printf("startlseek\n");
         //https://stackoverflow.com/questions/71976433/using-fread-to-read-a-text-based-file-best-practices
-        lseek(newfd, 0, SEEK_SET);
+        
+        // if(cmdFound)
+        // {
+        //     lseek(newfd, 0, SEEK_CUR);
+        // }
+        // else
+        // {
+            
+        // }
+
         printf("endlseek\n");
         int bytesRead = BUFFER_SIZE;
         memset(buff, 0, sizeof(buff));
 
-        while((bytesRead > 0) && cmdFound == false)
+        while((bytesRead > 0))
         {
             bytesRead = read(newfd, buff, BUFFER_SIZE);
+            syslog(LOG_CRIT, "buffer read by aesdsocket: %s", buff);
             send(connecFd, buff, bytesRead, 0);
             memset(buff, 0, sizeof(buff));
             
